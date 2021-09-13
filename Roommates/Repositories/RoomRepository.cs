@@ -13,6 +13,8 @@ namespace Roommates.Repositories
         /// <summary>
         ///  When new RoomRepository is instantiated, pass the connection string along to the BaseRepository
         /// </summary>
+        /// this is the constructor. constructors have the same name as the class 
+        /// (the class name in this case is RoomRepository)
         public RoomRepository(string connectionString) : base(connectionString) { }
 
         // ...We'll add some methods shortly...
@@ -45,6 +47,7 @@ namespace Roommates.Repositories
                     List<Room> rooms = new List<Room>();
 
                     // Read() will return true if there's more data to read
+                    // you will move out of the loop once all the rows have been run thru 
                     while (reader.Read())
                     {
                         // The "ordinal" is the numeric position of the column in the query results.
@@ -80,6 +83,63 @@ namespace Roommates.Repositories
                 }
             }
         }
+        /// <summary>
+        ///  Returns a single room with the given id.
+        /// </summary>
+        public Room GetById(int id)
+        {
+            using (SqlConnection conn = Connection)
+            {
+                conn.Open();
+                using (SqlCommand cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT Name, MaxOccupancy FROM Room WHERE Id = @id";
+                    cmd.Parameters.AddWithValue("@id", id);
+                    SqlDataReader reader = cmd.ExecuteReader();
 
+                    Room room = null;
+
+                    // If we only expect a single row back from the database, we don't need a while loop.
+                    if (reader.Read())
+                    {
+                        room = new Room
+                        {
+                            Id = id,
+                            Name = reader.GetString(reader.GetOrdinal("Name")),
+                            MaxOccupancy = reader.GetInt32(reader.GetOrdinal("MaxOccupancy")),
+                        };
+                    }
+
+                    reader.Close();
+
+                    return room;
+                }
+            }
+        }
+        /// <summary>
+        ///  Add a new room to the database
+        ///   NOTE: This method sends data to the database,
+        ///   it does not get anything from the database, so there is nothing to return.
+        /// </summary>
+        public void Insert(Room room)
+        {
+            using (SqlConnection conn = Connection)
+            {
+                conn.Open();
+                using (SqlCommand cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = @"INSERT INTO Room (Name, MaxOccupancy) 
+                                         OUTPUT INSERTED.Id 
+                                         VALUES (@name, @maxOccupancy)";
+                    cmd.Parameters.AddWithValue("@name", room.Name);
+                    cmd.Parameters.AddWithValue("@maxOccupancy", room.MaxOccupancy);
+                    int id = (int)cmd.ExecuteScalar();
+
+                    room.Id = id;
+                }
+            }
+
+            // when this method is finished we can look in the database and see the new room.
+        }
     }
 }
